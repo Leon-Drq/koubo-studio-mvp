@@ -18,6 +18,13 @@ from app.services.tts import synthesize_speech
 from app.storage import JobStore
 
 
+def _step_status(provider_message: str, fallback_is_warning: bool = False) -> StepStatus:
+    lowered = provider_message.lower()
+    if "失败" in provider_message or "未配置" in provider_message or (fallback_is_warning and "fallback" in lowered):
+        return StepStatus.warning
+    return StepStatus.done
+
+
 class PipelineRunner:
     def __init__(self, settings: Settings, store: JobStore):
         self.settings = settings
@@ -65,9 +72,9 @@ class PipelineRunner:
         self.store.set_step(record, "asr", StepStatus.running, "正在提取口播文案")
         provided = record.inputs.source_text or download_description or download_title
         transcript_path = outputs_dir / "transcript.txt"
-        transcript, asr_provider = safe_transcribe(source_audio, self.settings, transcript_path, provided)
+        transcript, asr_provider = safe_transcribe(source_audio, self.settings, transcript_path, provided, record.inputs.asr_provider)
         record.artifacts.transcript = to_api_path(transcript_path)
-        self.store.set_step(record, "asr", StepStatus.done if "失败" not in asr_provider else StepStatus.warning, asr_provider)
+        self.store.set_step(record, "asr", _step_status(asr_provider), asr_provider)
 
         self.store.set_step(record, "rewrite", StepStatus.running, "正在改写脚本")
         script_path = outputs_dir / "script.txt"
@@ -77,27 +84,35 @@ class PipelineRunner:
             script_path,
             record.inputs.product_brief,
             record.inputs.tone,
+            record.inputs.llm_provider,
         )
         record.artifacts.rewritten_script = to_api_path(script_path)
         record.artifacts.title = title
         record.artifacts.topics = topics
-        self.store.set_step(record, "rewrite", StepStatus.done, rewrite_provider)
+        self.store.set_step(record, "rewrite", _step_status(rewrite_provider, True), rewrite_provider)
 
         self.store.set_step(record, "tts", StepStatus.running, "正在生成口播音频")
         if voice_sample:
             record.meta["voice_sample"] = to_api_path(voice_sample)
         speech_path = outputs_dir / "speech.mp3"
-        speech_audio, tts_provider = synthesize_speech(script, self.settings, speech_path, record.inputs.voice_name)
+        speech_audio, tts_provider = synthesize_speech(
+            script,
+            self.settings,
+            speech_path,
+            record.inputs.voice_name,
+            voice_sample,
+            record.inputs.tts_provider,
+        )
         record.artifacts.speech_audio = to_api_path(speech_audio)
-        self.store.set_step(record, "tts", StepStatus.done if "失败" not in tts_provider else StepStatus.warning, tts_provider)
+        self.store.set_step(record, "tts", _step_status(tts_provider, True), tts_provider)
 
         self.store.set_step(record, "lipsync", StepStatus.running, "正在合成口型视频")
         if not avatar_video:
             raise RuntimeError("请上传真人静默视频。")
         lipsync_path = outputs_dir / "lipsync.mp4"
-        lip_sync_video, lipsync_provider = render_lipsync(avatar_video, speech_audio, self.settings, lipsync_path)
+        lip_sync_video, lipsync_provider = render_lipsync(avatar_video, speech_audio, self.settings, lipsync_path, record.inputs.lipsync_provider)
         record.artifacts.lip_sync_video = to_api_path(lip_sync_video)
-        self.store.set_step(record, "lipsync", StepStatus.done if "fallback" not in lipsync_provider else StepStatus.warning, lipsync_provider)
+        self.store.set_step(record, "lipsync", _step_status(lipsync_provider, True), lipsync_provider)
 
         self.store.set_step(record, "edit", StepStatus.running, "正在生成字幕和封面")
         if bgm_file:

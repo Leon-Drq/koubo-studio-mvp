@@ -35,10 +35,10 @@ def health(settings: Settings = Depends(get_settings)) -> dict[str, object]:
         "ok": True,
         "app": settings.app_name,
         "adapters": {
-            "asr": bool(settings.asr_command),
-            "llm": bool(settings.llm_command),
-            "tts": bool(settings.tts_command),
-            "lipsync": bool(settings.lipsync_command),
+            "asr": {"local": bool(settings.asr_command), "api": bool(settings.asr_api_url), "default": settings.default_asr_provider},
+            "llm": {"local": bool(settings.llm_command), "api": bool(settings.llm_api_url), "default": settings.default_llm_provider},
+            "tts": {"local": bool(settings.tts_command), "api": bool(settings.tts_api_url), "default": settings.default_tts_provider},
+            "lipsync": {"local": bool(settings.lipsync_command), "api": bool(settings.lipsync_api_url), "default": settings.default_lipsync_provider},
         },
     }
 
@@ -51,6 +51,10 @@ def create_job(
     product_brief: str = Form(""),
     tone: str = Form("电商口播"),
     voice_name: str = Form("default"),
+    asr_provider: str = Form("auto"),
+    llm_provider: str = Form("auto"),
+    tts_provider: str = Form("auto"),
+    lipsync_provider: str = Form("auto"),
     platforms: str = Form("local"),
     competitor_file: Optional[UploadFile] = File(None),
     avatar_video: Optional[UploadFile] = File(None),
@@ -67,6 +71,10 @@ def create_job(
             product_brief=product_brief.strip(),
             tone=tone.strip(),
             voice_name=voice_name.strip() or "default",
+            asr_provider=asr_provider.strip() or settings.default_asr_provider,
+            llm_provider=llm_provider.strip() or settings.default_llm_provider,
+            tts_provider=tts_provider.strip() or settings.default_tts_provider,
+            lipsync_provider=lipsync_provider.strip() or settings.default_lipsync_provider,
             platforms=selected_platforms,
         )
     )

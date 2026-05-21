@@ -174,10 +174,15 @@ select:focus {
   border-color: var(--cyan);
 }
 
-.inline-controls {
+.inline-controls,
+.provider-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.provider-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .platforms {
@@ -425,6 +430,7 @@ pre {
   }
 
   .inline-controls,
+  .provider-grid,
   .upload-grid,
   .platforms,
   .artifact-actions,

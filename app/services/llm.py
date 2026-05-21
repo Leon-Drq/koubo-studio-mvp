@@ -3,8 +3,12 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import httpx
+
 from app.config import Settings
+from app.services.api_clients import ApiClientError, rewrite_script_api
 from app.services.command import CommandError, has_binary, run_template
+from app.services.providers import normalize_provider, should_try_api
 
 
 def _rule_based_rewrite(source: str, product_brief: str, tone: str) -> str:
@@ -36,23 +40,35 @@ def _title_and_topics(script: str, product_brief: str) -> tuple[str, list[str]]:
     return title, topics[:5]
 
 
-def rewrite_script(source: str, settings: Settings, output: Path, product_brief: str, tone: str) -> tuple[str, str, list[str], str]:
+def rewrite_script(source: str, settings: Settings, output: Path, product_brief: str, tone: str, provider: str = "auto") -> tuple[str, str, list[str], str]:
     input_path = output.with_suffix(".input.txt")
     input_path.write_text(
         f"风格：{tone}\n商品卖点：{product_brief}\n\n原文案：\n{source}",
         encoding="utf-8",
     )
 
+    selected = normalize_provider(provider, settings.default_llm_provider)
+    api_failure = ""
+    if should_try_api(selected, bool(settings.llm_api_url)):
+        try:
+            script, api_provider = rewrite_script_api(source, settings, output, product_brief, tone)
+            title, topics = _title_and_topics(script, product_brief)
+            return script, title, topics, api_provider
+        except (ApiClientError, httpx.HTTPError) as exc:
+            api_failure = f"LLM API 失败，"
+    elif selected == "api" and not settings.llm_api_url:
+        api_failure = "LLM API 未配置，"
+
     if settings.llm_command.strip():
         try:
             run_template(settings.llm_command, input=input_path, output=output)
             script = output.read_text(encoding="utf-8").strip()
             title, topics = _title_and_topics(script, product_brief)
-            return script, title, topics, "LLM_COMMAND"
+            return script, title, topics, api_failure + "LLM_COMMAND"
         except CommandError:
             pass
 
-    if settings.ollama_model and has_binary("ollama"):
+    if selected != "api" and settings.ollama_model and has_binary("ollama"):
         prompt = input_path.read_text(encoding="utf-8") + "\n\n请改写成 60-90 秒中文电商口播，结构清晰，避免夸大承诺。"
         try:
             proc = subprocess.run(
@@ -66,11 +82,11 @@ def rewrite_script(source: str, settings: Settings, output: Path, product_brief:
             if script:
                 output.write_text(script, encoding="utf-8")
                 title, topics = _title_and_topics(script, product_brief)
-                return script, title, topics, f"Ollama {settings.ollama_model}"
+                return script, title, topics, api_failure + f"Ollama {settings.ollama_model}"
         except Exception:
             pass
 
     script = _rule_based_rewrite(source, product_brief, tone)
     output.write_text(script, encoding="utf-8")
     title, topics = _title_and_topics(script, product_brief)
-    return script, title, topics, "规则改写 fallback"
+    return script, title, topics, api_failure + "规则改写 fallback"

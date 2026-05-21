@@ -66,6 +66,41 @@
             </label>
           </div>
 
+          <div class="provider-grid">
+            <label>
+              <span>文案提取</span>
+              <select name="asr_provider">
+                <option value="auto">自动</option>
+                <option value="local">本地模型</option>
+                <option value="api">API</option>
+              </select>
+            </label>
+            <label>
+              <span>AI 改写</span>
+              <select name="llm_provider">
+                <option value="auto">自动</option>
+                <option value="local">本地模型</option>
+                <option value="api">API</option>
+              </select>
+            </label>
+            <label>
+              <span>语音生成</span>
+              <select name="tts_provider">
+                <option value="auto">自动</option>
+                <option value="local">本地模型</option>
+                <option value="api">API</option>
+              </select>
+            </label>
+            <label>
+              <span>口型同步</span>
+              <select name="lipsync_provider">
+                <option value="auto">自动</option>
+                <option value="local">本地模型</option>
+                <option value="api">API</option>
+              </select>
+            </label>
+          </div>
+
           <div class="platforms" aria-label="发布平台">
             <label><input type="checkbox" value="douyin" />抖音</label>
             <label><input type="checkbox" value="shipinhao" />视频号</label>

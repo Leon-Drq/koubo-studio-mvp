@@ -35,6 +35,10 @@ class JobInputs(BaseModel):
     product_brief: str = ""
     tone: str = "电商口播"
     voice_name: str = "default"
+    asr_provider: str = "auto"
+    llm_provider: str = "auto"
+    tts_provider: str = "auto"
+    lipsync_provider: str = "auto"
     platforms: list[str] = Field(default_factory=list)
 
 

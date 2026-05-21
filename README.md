@@ -8,6 +8,7 @@
 - 对标链接下载适配 `yt-dlp`
 - 对标视频音频抽取适配 `ffmpeg`
 - ASR、LLM、TTS、Lip-sync 命令模板适配层
+- ASR、LLM、TTS、Lip-sync 支持按任务选择 `auto/local/api`
 - 无 GPU 的 fallback 流程，方便先跑通产品闭环
 - 任务状态、产物、字幕、封面、发布清单持久化到 `data/jobs`
 - GitHub 友好的项目结构和烟测脚本
@@ -30,7 +31,26 @@ bash scripts/dev.sh
 brew install ffmpeg yt-dlp
 ```
 
-没有配置模型时，系统会使用 fallback：文案走演示/规则改写，音频在 macOS 上用 `say`，视频用原真人静默视频配音预览。接入模型后，fallback 会自动让位给配置的命令。
+没有配置模型时，系统会使用 fallback：文案走演示/规则改写，音频在 macOS 上用 `say`，视频用原真人静默视频配音预览。接入模型或 API 后，fallback 会自动让位给配置的 provider。
+
+## Provider 模式
+
+每个生成步骤都可以选择：
+
+- `auto`：优先使用已配置 API，否则走本地命令和 fallback。
+- `local`：只走本地命令、本机模型和 fallback。
+- `api`：优先走 API，失败后标记 warning 并回落，避免任务直接中断。
+
+全局默认值写在 `.env`：
+
+```env
+DEFAULT_ASR_PROVIDER=auto
+DEFAULT_LLM_PROVIDER=auto
+DEFAULT_TTS_PROVIDER=auto
+DEFAULT_LIPSYNC_PROVIDER=auto
+```
+
+前端页面也可以在每个任务里单独选择 `自动 / 本地模型 / API`。
 
 ## 接入开源模型
 
@@ -65,7 +85,7 @@ LLM_COMMAND=python scripts/adapters/ollama_rewrite.py --input {input} --output {
 推荐把 CosyVoice、GPT-SoVITS、F5-TTS 作为独立服务或独立虚拟环境，再写一个 wrapper：
 
 ```env
-TTS_COMMAND=python your_cosyvoice_wrapper.py --input {input} --voice {voice} --output {audio}
+TTS_COMMAND=python your_cosyvoice_wrapper.py --input {input} --voice {voice} --voice-sample {voice_sample} --output {audio}
 ```
 
 ### 口型同步
@@ -77,6 +97,64 @@ LIPSYNC_COMMAND=python your_musetalk_wrapper.py --video {video} --audio {audio} 
 ```
 
 注意：Wav2Lip 官方仓库对商业使用有限制，商业化前要确认许可证。
+
+## 接入 API
+
+API provider 使用通用 HTTP 适配，适合线上 SaaS 先接云服务，后续再逐步替换成本地 GPU。
+
+### ASR API
+
+`ASR_API_URL` 是 multipart endpoint，默认字段名为 `file`，返回值可以是 `{"text": "..."}` 或纯文本。
+
+```env
+ASR_API_URL=https://api.example.com/v1/audio/transcriptions
+ASR_API_KEY=sk-...
+ASR_API_MODEL=whisper-1
+ASR_API_FILE_FIELD=file
+```
+
+### LLM API
+
+`LLM_API_URL` 使用 OpenAI-compatible `/chat/completions` 格式。
+
+```env
+LLM_API_URL=https://api.example.com/v1/chat/completions
+LLM_API_KEY=sk-...
+LLM_API_MODEL=gpt-4o-mini
+LLM_API_TEMPERATURE=0.7
+```
+
+### TTS API
+
+JSON 模式适合 OpenAI-compatible `/audio/speech` 一类接口，接口可以直接返回音频二进制，也可以返回 `audio_url` 或 `audio_base64`。
+
+```env
+TTS_API_URL=https://api.example.com/v1/audio/speech
+TTS_API_KEY=sk-...
+TTS_API_MODEL=tts-1
+TTS_API_VOICE=alloy
+TTS_API_MODE=json
+```
+
+如果第三方语音克隆接口需要上传参考声音样本：
+
+```env
+TTS_API_MODE=multipart
+TTS_API_TEXT_FIELD=input
+TTS_API_VOICE_FIELD=voice
+TTS_API_FILE_FIELD=voice_sample
+```
+
+### Lip-sync API
+
+`LIPSYNC_API_URL` 接收真人静默视频和口播音频，返回视频二进制、`video_url` 或 `video_base64`。
+
+```env
+LIPSYNC_API_URL=https://api.example.com/v1/lipsync
+LIPSYNC_API_KEY=sk-...
+LIPSYNC_API_VIDEO_FIELD=video
+LIPSYNC_API_AUDIO_FIELD=audio
+```
 
 ## API
 

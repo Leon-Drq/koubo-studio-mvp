@@ -32,16 +32,29 @@ function apiFile(path) {
 function setPill(id, enabled) {
   const el = document.querySelector(id);
   el.classList.toggle("on", enabled);
-  el.textContent = `${el.textContent.split(" ")[0]} ${enabled ? "已配置" : "fallback"}`;
+  const base = el.dataset.base || el.textContent.split(" ")[0];
+  el.dataset.base = base;
+  el.textContent = `${base} ${enabled ? "API" : "本地"}`;
 }
 
 async function loadHealth() {
   const res = await fetch("/api/health");
   const data = await res.json();
   document.querySelector("#service-state").textContent = data.ok ? "本地服务已启动" : "服务异常";
-  setPill("#asr-pill", data.adapters.asr);
-  setPill("#tts-pill", data.adapters.tts);
-  setPill("#video-pill", data.adapters.lipsync);
+  setPill("#asr-pill", Boolean(data.adapters.asr.api));
+  setPill("#tts-pill", Boolean(data.adapters.tts.api));
+  setPill("#video-pill", Boolean(data.adapters.lipsync.api));
+
+  const defaults = {
+    asr_provider: data.adapters.asr.default,
+    llm_provider: data.adapters.llm.default,
+    tts_provider: data.adapters.tts.default,
+    lipsync_provider: data.adapters.lipsync.default,
+  };
+  for (const [name, value] of Object.entries(defaults)) {
+    const select = document.querySelector(`[name="${name}"]`);
+    if (select && value) select.value = value;
+  }
 }
 
 function renderSteps(steps) {
