@@ -49,6 +49,27 @@ Koubo Studio 是一个本地部署的电商口播数字人生成平台 MVP。它
 - `git-lfs`
 - Ollama
 
+## 资源占用估算
+
+下面是本项目当前适配模型的大致资源需求。实际占用会随驱动、PyTorch/CUDA 版本、输入视频长度、分辨率、batch size、缓存状态变化。
+
+| 使用方式 | 建议显存 | 建议内存 | 建议可用磁盘 | 说明 |
+| --- | ---: | ---: | ---: | --- |
+| 只跑 Web + fallback | 不需要 GPU | 4-8GB | 1-2GB | 可打开页面、创建任务、用静音/快速预览 fallback 跑通流程 |
+| ASR + LLM 文案 | 6-8GB | 16GB | 10-20GB | SenseVoiceSmall + Ollama `qwen2.5:7b`；Ollama 约占 5-6GB 显存 |
+| F5-TTS | 8GB+ | 16GB | 15-25GB | 语音克隆；首次运行会下载 HF/ModelScope 依赖模型 |
+| IndexTTS2 | 10-12GB+ | 24-32GB | 15-25GB | `IndexTeam/IndexTTS-2` 权重较大，加载阶段也吃系统内存 |
+| CosyVoice2 | 8-12GB+ | 16-24GB | 10-20GB | `iic/CosyVoice2-0.5B`，支持 cross-lingual/zero-shot |
+| MuseTalk 1.5 | 8-12GB+ | 16GB | 15-25GB | 标准口型同步，`MUSETALK_BATCH_SIZE` 越大越吃显存 |
+| LatentSync 1.5 | 12GB+ | 24GB | 15-25GB | 高质量口型同步；12GB 显存机器建议关闭其他 GPU 程序 |
+| 全量本地模型 | 12GB+ | 32GB | 80-120GB | 包含多个虚拟环境、PyTorch CUDA wheel、模型权重和缓存 |
+
+推荐配置：
+
+- 入门体验：16GB 内存，20GB 可用磁盘，不要求 GPU，使用 fallback/快速预览。
+- 本地语音克隆：RTX 3060 12GB 或以上，24GB 内存，50GB 可用磁盘。
+- 完整本地数字人流程：RTX 4080 12GB 或以上，32GB 内存，100GB 可用磁盘。
+
 Windows 可用：
 
 ```powershell
@@ -111,6 +132,8 @@ http://127.0.0.1:8000
 ```powershell
 .\scripts\setup_local_models.ps1
 ```
+
+这一步会下载多个 PyTorch CUDA wheel、模型仓库和模型权重。建议先确认 D 盘或项目所在磁盘至少有 80GB 可用空间；如果同时安装 IndexTTS2 和 CosyVoice，建议预留 100GB 以上。
 
 它会安装：
 
