@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -20,9 +21,15 @@ def find_executable(name: str) -> str:
     raise SystemExit(f"{name} was not found.")
 
 
-def convert_audio(input_path: Path, output_path: Path) -> Path:
+def convert_audio(input_path: Path, output_path: Path, *, sample_rate: int | None = None, mono: bool = False) -> Path:
     ffmpeg = find_executable("ffmpeg")
-    subprocess.run([ffmpeg, "-y", "-i", str(input_path), str(output_path)], check=True)
+    command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_path), "-vn"]
+    if mono:
+        command.extend(["-ac", "1"])
+    if sample_rate:
+        command.extend(["-ar", str(sample_rate)])
+    command.append(str(output_path))
+    subprocess.run(command, check=True)
     return output_path
 
 
@@ -56,7 +63,6 @@ def main() -> None:
     sys.path.insert(0, str(repo / "third_party" / "Matcha-TTS"))
 
     from cosyvoice.cli.cosyvoice import CosyVoice, CosyVoice2
-    from cosyvoice.utils.file_utils import load_wav
     import torch
     import torchaudio
 
@@ -68,18 +74,23 @@ def main() -> None:
     model_cls = CosyVoice2 if "cosyvoice2" in model_name or "cosyvoice3" in model_name else CosyVoice
     cosyvoice = model_cls(str(model_dir), load_jit=False, load_trt=False, fp16=args.fp16)
     mode = args.mode.strip().lower().replace("-", "_")
-    prompt_wav = load_wav(str(Path(args.voice_sample).resolve()), 16000)
+    voice_sample = Path(args.voice_sample).resolve()
     chunks = []
 
-    if mode == "zero_shot" and args.prompt_text.strip():
-        iterator = cosyvoice.inference_zero_shot(source_text, args.prompt_text.strip(), prompt_wav, stream=False)
-    else:
-        iterator = cosyvoice.inference_cross_lingual(source_text, prompt_wav, stream=False)
+    with tempfile.TemporaryDirectory(prefix="cosyvoice_ref_") as tmp_dir:
+        prompt_path = Path(tmp_dir) / "voice_sample.wav"
+        convert_audio(voice_sample, prompt_path, sample_rate=16000, mono=True)
+        prompt_wav = str(prompt_path)
 
-    for item in iterator:
-        speech = item.get("tts_speech")
-        if speech is not None:
-            chunks.append(speech.cpu())
+        if mode == "zero_shot" and args.prompt_text.strip():
+            iterator = cosyvoice.inference_zero_shot(source_text, args.prompt_text.strip(), prompt_wav, stream=False)
+        else:
+            iterator = cosyvoice.inference_cross_lingual(source_text, prompt_wav, stream=False)
+
+        for item in iterator:
+            speech = item.get("tts_speech")
+            if speech is not None:
+                chunks.append(speech.cpu())
 
     if not chunks:
         raise SystemExit("CosyVoice finished but did not produce speech.")

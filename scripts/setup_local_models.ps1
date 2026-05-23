@@ -122,8 +122,8 @@ if ($WithCosyVoice) {
     Run "git" @("submodule", "update", "--init", "--recursive")
     Run "uv" @("venv", ".venv", "--python", "3.10")
     $CosyPython = Join-Path (Resolve-Path ".") ".venv\Scripts\python.exe"
-    Run "uv" @("pip", "install", "--python", $CosyPython, "-U", "pip", "setuptools", "wheel")
-    Run "uv" @("pip", "install", "--python", $CosyPython, "-r", "requirements.txt")
+    Run "uv" @("pip", "install", "--python", $CosyPython, "-U", "pip", "setuptools<81", "wheel")
+    Run "uv" @("pip", "install", "--python", $CosyPython, "--index-strategy", "unsafe-best-match", "--no-build-isolation", "-r", "requirements.txt")
     Run "uv" @("pip", "install", "--python", $CosyPython, "huggingface_hub[hf_xet]", "modelscope")
     Run $CosyPython @("-c", "from modelscope import snapshot_download; snapshot_download('iic/CosyVoice2-0.5B', local_dir='pretrained_models/CosyVoice2-0.5B')")
   } finally {
