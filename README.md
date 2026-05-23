@@ -11,7 +11,7 @@ Koubo Studio 是一个本地部署的电商口播数字人生成平台 MVP。它
 - 音视频处理：`ffmpeg` / `ffprobe`
 - 文案提取：FunASR / SenseVoiceSmall，也支持自定义 ASR 命令或 API
 - 文案改写：Ollama / Qwen2.5，也支持 OpenAI-compatible API
-- 语音克隆：F5-TTS、IndexTTS2，可在页面选择
+- 语音克隆：F5-TTS、IndexTTS2、CosyVoice，可在页面选择
 - 口型同步：LatentSync 高质量、MuseTalk 标准、快速预览 fallback
 - 任务状态、产物、字幕、封面、发布清单持久化到 `data/jobs`
 
@@ -25,6 +25,7 @@ Koubo Studio 是一个本地部署的电商口播数字人生成平台 MVP。它
 | LLM | `qwen2.5:7b` via Ollama | 本地文案改写；也可选择“采用当前文案” |
 | TTS | F5-TTS `F5TTS_v1_Base` | 零样本语音克隆，支持声音样本 |
 | TTS | IndexTTS2 `IndexTeam/IndexTTS-2` | 另一种本地语音克隆模型，页面可选 |
+| TTS | CosyVoice2 `iic/CosyVoice2-0.5B` | 多语种零样本/跨语种声音克隆，页面可选 |
 | Lip-sync | LatentSync 1.5 | 高质量口型同步，适合 12GB 显存机器 |
 | Lip-sync | MuseTalk 1.5 | 标准口型同步 fallback |
 
@@ -124,10 +125,16 @@ http://127.0.0.1:8000
 .\scripts\setup_local_models.ps1 -SkipOllama -SkipMuseTalk -WithIndexTTS
 ```
 
+如果只想安装 CosyVoice：
+
+```powershell
+.\scripts\setup_local_models.ps1 -SkipOllama -SkipMuseTalk -WithCosyVoice
+```
+
 如果全部安装：
 
 ```powershell
-.\scripts\setup_local_models.ps1 -WithIndexTTS
+.\scripts\setup_local_models.ps1 -WithIndexTTS -WithCosyVoice
 ```
 
 脚本会尽量把 `uv`、Hugging Face、ModelScope、Torch 缓存放到 `models/cache`，减少 C 盘压力。
@@ -147,6 +154,7 @@ ASR_COMMAND=.venv-models/Scripts/python.exe scripts/adapters/funasr_asr.py --inp
 LLM_COMMAND=python scripts/adapters/ollama_rewrite.py --input {input} --output {output}
 F5_TTS_COMMAND=.venv-models/Scripts/python.exe scripts/adapters/f5_tts.py --input {input} --voice {voice} --voice-sample {voice_sample} --output {audio}
 INDEXTTS_COMMAND=models/IndexTTS/.venv/Scripts/python.exe scripts/adapters/indextts2_tts.py --input {input} --voice-sample {voice_sample} --output {audio}
+COSYVOICE_COMMAND=models/CosyVoice/.venv/Scripts/python.exe scripts/adapters/cosyvoice_tts.py --input {input} --voice-sample {voice_sample} --output {audio}
 LATENTSYNC_COMMAND=.venv-latentsync/Scripts/python.exe scripts/adapters/latentsync_lipsync.py --video {video} --audio {audio} --output {output}
 LIPSYNC_COMMAND=.venv-musetalk/Scripts/python.exe scripts/adapters/musetalk_lipsync.py --video {video} --audio {audio} --output {output}
 ```
@@ -155,9 +163,17 @@ LIPSYNC_COMMAND=.venv-musetalk/Scripts/python.exe scripts/adapters/musetalk_lips
 
 - 文案提取：自动 / 本地模型 / API
 - AI 改写：自动 / 本地模型 / API / 采用当前文案
-- 语音模型：F5-TTS / IndexTTS2
+- 语音模型：F5-TTS / IndexTTS2 / CosyVoice
 - 语音生成：自动 / 本地模型 / API
 - 成片质量：自动 / 快速预览 / MuseTalk 标准 / LatentSync 高质量 / API 成片
+
+CosyVoice 默认使用 `COSYVOICE_MODE=cross_lingual`，只需要上传声音样本即可生成克隆音色。如果要使用 zero-shot 模式，可设置：
+
+```env
+COSYVOICE_MODE=zero_shot
+COSYVOICE_PROMPT_TEXT=声音样本中说的原文
+COSYVOICE_FP16=true
+```
 
 ## 显存说明
 
@@ -167,7 +183,7 @@ LIPSYNC_COMMAND=.venv-musetalk/Scripts/python.exe scripts/adapters/musetalk_lips
 ollama stop qwen2.5:7b
 ```
 
-这是为了释放 Ollama 占用的 GPU 显存，避免 IndexTTS2、LatentSync、MuseTalk 因显存不足失败。可在 `.env` 关闭：
+这是为了释放 Ollama 占用的 GPU 显存，避免 IndexTTS2、CosyVoice、LatentSync、MuseTalk 因显存不足失败。可在 `.env` 关闭：
 
 ```env
 AUTO_UNLOAD_OLLAMA_BEFORE_MEDIA=false

@@ -28,6 +28,12 @@ def _normalize_tts_model(value: str, default: str) -> str:
         "index-tts": "indextts2",
         "index-tts2": "indextts2",
         "indextts-2": "indextts2",
+        "cosy": "cosyvoice",
+        "cosy-voice": "cosyvoice",
+        "cosyvoice2": "cosyvoice",
+        "cosyvoice-2": "cosyvoice",
+        "cosyvoice3": "cosyvoice",
+        "cosyvoice-3": "cosyvoice",
     }
     return aliases.get(model, model)
 
@@ -37,6 +43,8 @@ def _tts_command_for_model(settings: Settings, model: str) -> str:
         return settings.f5_tts_command.strip() or settings.tts_command.strip()
     if model == "indextts2":
         return settings.indextts_command.strip()
+    if model == "cosyvoice":
+        return settings.cosyvoice_command.strip()
     return settings.tts_command.strip()
 
 

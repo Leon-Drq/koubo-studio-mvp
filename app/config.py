@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     tts_command: str = ""
     f5_tts_command: str = ""
     indextts_command: str = ""
+    cosyvoice_command: str = ""
     lipsync_command: str = ""
     latentsync_command: str = ""
     musetalk_batch_size: int = 8

@@ -1,7 +1,8 @@
 param(
   [switch]$SkipOllama,
   [switch]$SkipMuseTalk,
-  [switch]$WithIndexTTS
+  [switch]$WithIndexTTS,
+  [switch]$WithCosyVoice
 )
 
 $ErrorActionPreference = "Stop"
@@ -104,6 +105,27 @@ if ($WithIndexTTS) {
     Run "git" @("checkout", "-f", "HEAD")
     Run "uv" @("sync")
     Run "uv" @("tool", "run", "--from", "huggingface-hub[hf_xet]", "hf", "download", "IndexTeam/IndexTTS-2", "--local-dir", "checkpoints")
+  } finally {
+    Pop-Location
+  }
+}
+
+if ($WithCosyVoice) {
+  if (-not (Test-Path "models")) {
+    New-Item -ItemType Directory -Path "models" | Out-Null
+  }
+  if (-not (Test-Path "models\CosyVoice")) {
+    Run "git" @("clone", "--recursive", "https://github.com/FunAudioLLM/CosyVoice.git", "models\CosyVoice")
+  }
+  Push-Location "models\CosyVoice"
+  try {
+    Run "git" @("submodule", "update", "--init", "--recursive")
+    Run "uv" @("venv", ".venv", "--python", "3.10")
+    $CosyPython = Join-Path (Resolve-Path ".") ".venv\Scripts\python.exe"
+    Run "uv" @("pip", "install", "--python", $CosyPython, "-U", "pip", "setuptools", "wheel")
+    Run "uv" @("pip", "install", "--python", $CosyPython, "-r", "requirements.txt")
+    Run "uv" @("pip", "install", "--python", $CosyPython, "huggingface_hub[hf_xet]", "modelscope")
+    Run $CosyPython @("-c", "from modelscope import snapshot_download; snapshot_download('iic/CosyVoice2-0.5B', local_dir='pretrained_models/CosyVoice2-0.5B')")
   } finally {
     Pop-Location
   }

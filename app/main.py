@@ -52,7 +52,7 @@ def health(settings: Settings = Depends(get_settings)) -> dict[str, object]:
             "asr": {"local": bool(settings.asr_command), "api": bool(settings.asr_api_url), "default": settings.default_asr_provider},
             "llm": {"local": bool(settings.llm_command), "api": bool(settings.llm_api_url), "default": settings.default_llm_provider},
             "tts": {
-                "local": bool(settings.tts_command or settings.f5_tts_command or settings.indextts_command),
+                "local": bool(settings.tts_command or settings.f5_tts_command or settings.indextts_command or settings.cosyvoice_command),
                 "api": bool(settings.tts_api_url),
                 "default": settings.default_tts_provider,
             },
@@ -60,6 +60,7 @@ def health(settings: Settings = Depends(get_settings)) -> dict[str, object]:
                 "default": settings.default_tts_model,
                 "f5": bool(settings.f5_tts_command or settings.tts_command),
                 "indextts2": bool(settings.indextts_command),
+                "cosyvoice": bool(settings.cosyvoice_command),
             },
             "lipsync": {
                 "local": bool(settings.lipsync_command),
