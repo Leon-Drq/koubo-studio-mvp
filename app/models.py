@@ -38,7 +38,10 @@ class JobInputs(BaseModel):
     asr_provider: str = "auto"
     llm_provider: str = "auto"
     tts_provider: str = "auto"
+    tts_model: str = "f5"
     lipsync_provider: str = "auto"
+    musetalk_batch_size: int = 8
+    musetalk_bbox_shift: int = 0
     platforms: list[str] = Field(default_factory=list)
 
 

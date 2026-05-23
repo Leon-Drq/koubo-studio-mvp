@@ -47,6 +47,12 @@ def rewrite_script(source: str, settings: Settings, output: Path, product_brief:
         encoding="utf-8",
     )
 
+    if provider.strip().lower() == "skip":
+        script = source.strip()
+        output.write_text(script, encoding="utf-8")
+        title, topics = _title_and_topics(script, product_brief)
+        return script, title, topics, "采用当前文案"
+
     selected = normalize_provider(provider, settings.default_llm_provider)
     api_failure = ""
     if should_try_api(selected, bool(settings.llm_api_url)):
@@ -76,6 +82,8 @@ def rewrite_script(source: str, settings: Settings, output: Path, product_brief:
                 check=True,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
             script = proc.stdout.strip()

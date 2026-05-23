@@ -4,21 +4,23 @@ import json
 import subprocess
 from pathlib import Path
 
-from app.services.command import has_binary
+from app.services.command import binary_path
 
 
 def run_ffmpeg(args: list[str]) -> None:
-    if not has_binary("ffmpeg"):
+    ffmpeg = binary_path("ffmpeg")
+    if not ffmpeg:
         raise RuntimeError("ffmpeg is not installed.")
-    subprocess.run(["ffmpeg", "-y", *args], check=True, capture_output=True, text=True)
+    subprocess.run([ffmpeg, "-y", *args], check=True, capture_output=True, text=True)
 
 
 def ffprobe_duration(path: Path) -> float:
-    if not has_binary("ffprobe"):
+    ffprobe = binary_path("ffprobe")
+    if not ffprobe:
         return 0.0
     proc = subprocess.run(
         [
-            "ffprobe",
+            ffprobe,
             "-v",
             "error",
             "-show_entries",

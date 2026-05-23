@@ -11,8 +11,9 @@ from app.services.asr import safe_transcribe
 from app.services.downloader import download_video
 from app.services.llm import rewrite_script
 from app.services.lipsync import render_lipsync
-from app.services.media import burn_subtitles, extract_audio, generate_cover
+from app.services.media import burn_subtitles, extract_audio, generate_cover, mux_audio
 from app.services.publish import prepare_publish_report
+from app.services.resources import unload_ollama_before_media
 from app.services.subtitles import write_srt
 from app.services.tts import synthesize_speech
 from app.storage import JobStore
@@ -54,7 +55,7 @@ class PipelineRunner:
         download_title = ""
         download_description = ""
         if not source_video and record.inputs.competitor_url:
-            result = download_video(record.inputs.competitor_url, inputs_dir)
+            result = download_video(record.inputs.competitor_url, inputs_dir, self.settings)
             source_video = result.video
             download_title = result.title
             download_description = result.description
@@ -92,6 +93,7 @@ class PipelineRunner:
         self.store.set_step(record, "rewrite", _step_status(rewrite_provider, True), rewrite_provider)
 
         self.store.set_step(record, "tts", StepStatus.running, "正在生成口播音频")
+        resource_message = unload_ollama_before_media(self.settings)
         if voice_sample:
             record.meta["voice_sample"] = to_api_path(voice_sample)
         speech_path = outputs_dir / "speech.mp3"
@@ -102,17 +104,27 @@ class PipelineRunner:
             record.inputs.voice_name,
             voice_sample,
             record.inputs.tts_provider,
+            record.inputs.tts_model,
         )
         record.artifacts.speech_audio = to_api_path(speech_audio)
-        self.store.set_step(record, "tts", _step_status(tts_provider, True), tts_provider)
+        self.store.set_step(record, "tts", _step_status(tts_provider, True), "；".join(item for item in [resource_message, tts_provider] if item))
 
         self.store.set_step(record, "lipsync", StepStatus.running, "正在合成口型视频")
+        resource_message = unload_ollama_before_media(self.settings)
         if not avatar_video:
             raise RuntimeError("请上传真人静默视频。")
         lipsync_path = outputs_dir / "lipsync.mp4"
-        lip_sync_video, lipsync_provider = render_lipsync(avatar_video, speech_audio, self.settings, lipsync_path, record.inputs.lipsync_provider)
+        lip_sync_video, lipsync_provider = render_lipsync(
+            avatar_video,
+            speech_audio,
+            self.settings,
+            lipsync_path,
+            record.inputs.lipsync_provider,
+            record.inputs.musetalk_batch_size,
+            record.inputs.musetalk_bbox_shift,
+        )
         record.artifacts.lip_sync_video = to_api_path(lip_sync_video)
-        self.store.set_step(record, "lipsync", _step_status(lipsync_provider, True), lipsync_provider)
+        self.store.set_step(record, "lipsync", _step_status(lipsync_provider, True), "；".join(item for item in [resource_message, lipsync_provider] if item))
 
         self.store.set_step(record, "edit", StepStatus.running, "正在生成字幕和封面")
         if bgm_file:
@@ -122,13 +134,19 @@ class PipelineRunner:
         record.artifacts.srt = to_api_path(srt_path)
 
         final_path = outputs_dir / "final.mp4"
+        video_for_final = lip_sync_video
         if self.settings.burn_subtitles:
             try:
-                burn_subtitles(lip_sync_video, srt_path, final_path)
+                subtitled_path = outputs_dir / "subtitled.mp4"
+                burn_subtitles(lip_sync_video, srt_path, subtitled_path)
+                video_for_final = subtitled_path
             except Exception:
-                final_path = lip_sync_video
-        else:
-            final_path = lip_sync_video
+                video_for_final = lip_sync_video
+
+        try:
+            mux_audio(video_for_final, speech_audio, final_path)
+        except Exception:
+            final_path = video_for_final
         cover_path = outputs_dir / "cover.jpg"
         try:
             generate_cover(final_path, cover_path)

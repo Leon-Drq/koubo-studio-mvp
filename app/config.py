@@ -11,10 +11,18 @@ class Settings(BaseSettings):
     default_llm_provider: str = "auto"
     default_tts_provider: str = "auto"
     default_lipsync_provider: str = "auto"
+    default_tts_model: str = "f5"
     asr_command: str = ""
     llm_command: str = ""
     tts_command: str = ""
+    f5_tts_command: str = ""
+    indextts_command: str = ""
     lipsync_command: str = ""
+    latentsync_command: str = ""
+    musetalk_batch_size: int = 8
+    musetalk_bbox_shift: int = 0
+    auto_unload_ollama_before_media: bool = True
+    ollama_bin: str = ""
     ollama_model: str = "qwen2.5:7b"
     asr_api_url: str = ""
     asr_api_key: str = ""
@@ -38,8 +46,11 @@ class Settings(BaseSettings):
     lipsync_api_audio_field: str = "audio"
     burn_subtitles: bool = False
     enable_browser_publish: bool = False
+    ytdlp_cookies_file: str = ""
+    ytdlp_cookies_from_browser: str = ""
+    ytdlp_proxy: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def jobs_dir(self) -> Path:

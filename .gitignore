@@ -1,6 +1,10 @@
 .DS_Store
 .env
 .venv/
+.venv-models/
+.venv-musetalk/
+.venv-latentsync/
+.venv-indextts/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -9,6 +13,10 @@ __pycache__/
 data/*
 !data/.gitkeep
 *.log
+cookies/
+*cookies*.txt
 dist/
 build/
 node_modules/
+models/
+checkpoints/

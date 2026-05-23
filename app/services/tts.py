@@ -18,11 +18,42 @@ def _estimate_seconds(text: str) -> float:
     return min(max(chars / 5.2, 8.0), 180.0)
 
 
-def synthesize_speech(script: str, settings: Settings, output: Path, voice_name: str, voice_sample: Optional[Path] = None, provider: str = "auto") -> tuple[Path, str]:
+def _normalize_tts_model(value: str, default: str) -> str:
+    model = (value or default or "f5").strip().lower().replace("_", "-")
+    aliases = {
+        "f5tts": "f5",
+        "f5-tts": "f5",
+        "index": "indextts2",
+        "indextts": "indextts2",
+        "index-tts": "indextts2",
+        "index-tts2": "indextts2",
+        "indextts-2": "indextts2",
+    }
+    return aliases.get(model, model)
+
+
+def _tts_command_for_model(settings: Settings, model: str) -> str:
+    if model == "f5":
+        return settings.f5_tts_command.strip() or settings.tts_command.strip()
+    if model == "indextts2":
+        return settings.indextts_command.strip()
+    return settings.tts_command.strip()
+
+
+def synthesize_speech(
+    script: str,
+    settings: Settings,
+    output: Path,
+    voice_name: str,
+    voice_sample: Optional[Path] = None,
+    provider: str = "auto",
+    tts_model: str = "f5",
+) -> tuple[Path, str]:
     input_path = output.with_suffix(".input.txt")
     input_path.write_text(script, encoding="utf-8")
 
     selected = normalize_provider(provider, settings.default_tts_provider)
+    selected_model = _normalize_tts_model(tts_model, settings.default_tts_model)
     api_failure = ""
     if should_try_api(selected, bool(settings.tts_api_url)):
         try:
@@ -32,22 +63,24 @@ def synthesize_speech(script: str, settings: Settings, output: Path, voice_name:
     elif selected == "api" and not settings.tts_api_url:
         api_failure = "TTS API 未配置，"
 
-    if settings.tts_command.strip():
+    command = _tts_command_for_model(settings, selected_model)
+    if command:
         try:
             run_template(
-                settings.tts_command,
+                command,
                 input=input_path,
                 audio=output,
                 voice=voice_name,
                 voice_sample=voice_sample or "",
+                model=selected_model,
             )
-            return output, api_failure + "TTS_COMMAND"
+            return output, api_failure + f"TTS_COMMAND:{selected_model}"
         except CommandError as exc:
-            fallback = f"{api_failure}TTS_COMMAND 失败，已尝试本机 fallback：{exc}"
+            fallback = f"{api_failure}TTS_COMMAND:{selected_model} 失败，已尝试本机 fallback：{exc}"
         else:
             fallback = ""
     else:
-        fallback = api_failure
+        fallback = f"{api_failure}{selected_model} 未配置，"
 
     if selected != "api" and has_binary("say") and has_binary("ffmpeg"):
         aiff_path = output.with_suffix(".aiff")

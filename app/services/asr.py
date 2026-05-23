@@ -8,7 +8,7 @@ import httpx
 
 from app.config import Settings
 from app.services.api_clients import ApiClientError, transcribe_audio_api
-from app.services.command import CommandError, has_binary, run_template
+from app.services.command import CommandError, binary_path, run_template
 from app.services.providers import normalize_provider, should_try_api
 
 
@@ -38,10 +38,11 @@ def transcribe_audio(audio: Optional[Path], settings: Settings, output: Path, pr
         text = output.read_text(encoding="utf-8").strip()
         return text, api_failure + "ASR_COMMAND"
 
-    if audio and selected != "api" and has_binary("whisper"):
+    whisper = binary_path("whisper")
+    if audio and selected != "api" and whisper:
         subprocess.run(
             [
-                "whisper",
+                whisper,
                 str(audio),
                 "--language",
                 "Chinese",

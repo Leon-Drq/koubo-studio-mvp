@@ -22,164 +22,238 @@
       </div>
     </header>
 
-    <main class="workspace">
-      <section class="panel script-panel">
-        <div class="panel-title">
-          <span></span>
-          <h2>文案仿写</h2>
-          <span></span>
-        </div>
-        <form id="job-form" class="form-grid">
-          <label>
-            <span>对标链接</span>
-            <input name="competitor_url" placeholder="https://v.douyin.com/..." />
-          </label>
-
-          <label>
-            <span>对标视频</span>
-            <input name="competitor_file" type="file" accept="video/*" />
-          </label>
-
-          <label class="wide">
-            <span>已有文案</span>
-            <textarea name="source_text" rows="7" placeholder="粘贴文案后可跳过视频解析"></textarea>
-          </label>
-
-          <label class="wide">
-            <span>商品卖点</span>
-            <textarea name="product_brief" rows="5" placeholder="品类、价格带、人群、场景、核心卖点"></textarea>
-          </label>
-
-          <div class="inline-controls">
-            <label>
-              <span>口播风格</span>
-              <select name="tone">
-                <option>电商口播</option>
-                <option>情绪种草</option>
-                <option>测评拆解</option>
-                <option>老板直讲</option>
-              </select>
-            </label>
-            <label>
-              <span>音色名</span>
-              <input name="voice_name" value="default" />
-            </label>
+    <main>
+      <form id="job-form" class="studio-grid">
+        <section class="panel source-panel">
+          <div class="panel-head">
+            <div>
+              <small>01</small>
+              <h2>对标素材</h2>
+            </div>
+            <span class="panel-tag">输入</span>
           </div>
 
-          <div class="provider-grid">
-            <label>
-              <span>文案提取</span>
-              <select name="asr_provider">
-                <option value="auto">自动</option>
-                <option value="local">本地模型</option>
-                <option value="api">API</option>
-              </select>
+          <div class="field-stack">
+            <div class="url-with-button">
+              <label>
+                <span>对标链接</span>
+                <input name="competitor_url" placeholder="https://v.douyin.com/..." />
+              </label>
+              <button id="extract-script-btn" type="button" class="secondary-btn">提取文案</button>
+            </div>
+
+            <label class="file-row">
+              <span>对标视频</span>
+              <input name="competitor_file" type="file" accept="video/*" />
             </label>
-            <label>
-              <span>AI 改写</span>
-              <select name="llm_provider">
-                <option value="auto">自动</option>
-                <option value="local">本地模型</option>
-                <option value="api">API</option>
-              </select>
-            </label>
-            <label>
-              <span>语音生成</span>
-              <select name="tts_provider">
-                <option value="auto">自动</option>
-                <option value="local">本地模型</option>
-                <option value="api">API</option>
-              </select>
-            </label>
-            <label>
-              <span>口型同步</span>
-              <select name="lipsync_provider">
-                <option value="auto">自动</option>
-                <option value="local">本地模型</option>
-                <option value="api">API</option>
-              </select>
+
+            <label class="text-field grow-field">
+              <span>原始文案</span>
+              <textarea name="source_text" rows="13" placeholder="粘贴文案，或从对标链接提取"></textarea>
             </label>
           </div>
+        </section>
 
-          <div class="platforms" aria-label="发布平台">
-            <label><input type="checkbox" value="douyin" />抖音</label>
-            <label><input type="checkbox" value="shipinhao" />视频号</label>
-            <label><input type="checkbox" value="xiaohongshu" />小红书</label>
-            <label><input type="checkbox" value="kuaishou" />快手</label>
+        <section class="panel rewrite-panel">
+          <div class="panel-head">
+            <div>
+              <small>02</small>
+              <h2>文案工作台</h2>
+            </div>
+            <span class="panel-tag">改写</span>
           </div>
-        </form>
-      </section>
 
-      <section class="panel media-panel">
-        <div class="panel-title">
-          <span></span>
-          <h2>音频视频</h2>
-          <span></span>
-        </div>
-        <div class="upload-grid">
-          <label class="upload-tile">
-            <span>真人静默视频</span>
-            <input id="avatar_video" form="job-form" name="avatar_video" type="file" accept="video/*" required />
-          </label>
-          <label class="upload-tile">
-            <span>声音样本</span>
-            <input form="job-form" name="voice_sample" type="file" accept="audio/*" />
-          </label>
-          <label class="upload-tile">
-            <span>背景音乐</span>
-            <input form="job-form" name="bgm_file" type="file" accept="audio/*" />
-          </label>
-        </div>
+          <div class="field-stack">
+            <label class="text-field">
+              <span>商品卖点</span>
+              <textarea name="product_brief" rows="4" placeholder="品类、价格带、人群、场景、核心卖点"></textarea>
+            </label>
 
-        <button id="create-job" form="job-form" type="submit">生成口播视频</button>
+            <div class="control-row">
+              <label>
+                <span>口播风格</span>
+                <select name="tone">
+                  <option>电商口播</option>
+                  <option>情绪种草</option>
+                  <option>测评拆解</option>
+                  <option>老板直讲</option>
+                </select>
+              </label>
+              <label>
+                <span>AI 改写</span>
+                <select name="llm_provider">
+                  <option value="auto">自动</option>
+                  <option value="local">本地模型</option>
+                  <option value="api">API</option>
+                  <option value="skip">采用当前文案</option>
+                </select>
+              </label>
+            </div>
 
-        <div class="steps" id="steps"></div>
-      </section>
+            <div class="rewrite-actions">
+              <button id="rewrite-script-btn" type="button">文案改写</button>
+              <button id="adopt-script-btn" type="button" class="ghost-btn">采用改写稿</button>
+              <span id="rewrite-state">待改写</span>
+            </div>
 
-      <section class="panel preview-panel">
-        <div class="panel-title">
-          <span></span>
-          <h2>视频剪辑</h2>
-          <span></span>
-        </div>
-        <div class="preview-shell">
-          <video id="preview-video" controls playsinline></video>
-          <div id="empty-preview" class="empty-preview">等待成片</div>
-        </div>
-        <div class="artifact-actions">
-          <a id="audio-link" href="#" hidden>下载音频</a>
-          <a id="script-link" href="#" hidden>下载文案</a>
-          <a id="subtitle-link" href="#" hidden>下载字幕</a>
-          <a id="cover-link" href="#" hidden>下载封面</a>
-          <a id="video-link" href="#" hidden>下载成片</a>
-        </div>
-      </section>
+            <label class="text-field grow-field">
+              <span>改写文案</span>
+              <textarea id="script-output" rows="12" placeholder="改写后可继续微调"></textarea>
+            </label>
 
-      <section class="panel output-panel">
-        <div class="panel-title">
-          <span></span>
-          <h2>标题话题</h2>
-          <span></span>
-        </div>
-        <input id="title-output" readonly placeholder="生成后显示标题" />
-        <div id="topics-output" class="topic-row"></div>
-        <textarea id="script-output" readonly rows="12" placeholder="生成后显示改写文案"></textarea>
-      </section>
+            <div class="title-topic-grid">
+              <label>
+                <span>标题</span>
+                <input id="title-output" placeholder="改写后生成标题" />
+              </label>
+              <div>
+                <span class="field-label">话题</span>
+                <div id="topics-output" class="topic-row"></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <section class="panel publish-panel">
-        <div class="panel-title">
-          <span></span>
-          <h2>发布平台</h2>
-          <span></span>
-        </div>
-        <div class="platform-icons">
-          <div>抖音</div>
-          <div>视频号</div>
-          <div>小红书</div>
-          <div>快手</div>
-        </div>
-        <pre id="publish-report"></pre>
-      </section>
+        <section class="panel generate-panel">
+          <div class="panel-head">
+            <div>
+              <small>03</small>
+              <h2>生成配置</h2>
+            </div>
+            <span class="panel-tag">输出</span>
+          </div>
+
+          <div class="field-stack">
+            <label class="file-card required-file">
+              <span>真人静默视频</span>
+              <input id="avatar_video" name="avatar_video" type="file" accept="video/*" required />
+            </label>
+
+            <div class="upload-grid">
+              <label class="file-card">
+                <span>声音样本</span>
+                <input name="voice_sample" type="file" accept="audio/*" />
+              </label>
+              <label class="file-card">
+                <span>背景音乐</span>
+                <input name="bgm_file" type="file" accept="audio/*" />
+              </label>
+            </div>
+
+            <div class="control-row">
+              <label>
+                <span>音色名</span>
+                <input name="voice_name" value="default" />
+              </label>
+              <label>
+                <span>文案提取</span>
+                <select name="asr_provider">
+                  <option value="auto">自动</option>
+                  <option value="local">本地模型</option>
+                  <option value="api">API</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-row">
+              <label>
+                <span>语音模型</span>
+                <select name="tts_model">
+                  <option value="f5">F5-TTS</option>
+                  <option value="indextts2">IndexTTS2</option>
+                </select>
+              </label>
+              <label>
+                <span>语音生成</span>
+                <select name="tts_provider">
+                  <option value="auto">自动</option>
+                  <option value="local">本地模型</option>
+                  <option value="api">API</option>
+                </select>
+              </label>
+              <label>
+                <span>成片质量</span>
+                <select name="lipsync_provider">
+                  <option value="auto">自动</option>
+                  <option value="preview">快速预览</option>
+                  <option value="local">MuseTalk 标准</option>
+                  <option value="latentsync">LatentSync 高质量</option>
+                  <option value="api">API 成片</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="control-row advanced-row">
+              <label>
+                <span>MuseTalk 批量</span>
+                <input name="musetalk_batch_size" type="number" min="1" max="64" step="1" value="8" />
+              </label>
+              <label>
+                <span>嘴型偏移</span>
+                <input name="musetalk_bbox_shift" type="number" min="-30" max="30" step="1" value="0" />
+              </label>
+            </div>
+
+            <div class="platforms" aria-label="发布平台">
+              <label><input type="checkbox" value="douyin" />抖音</label>
+              <label><input type="checkbox" value="shipinhao" />视频号</label>
+              <label><input type="checkbox" value="xiaohongshu" />小红书</label>
+              <label><input type="checkbox" value="kuaishou" />快手</label>
+            </div>
+
+            <button id="create-job" type="submit">生成口播视频</button>
+          </div>
+        </section>
+
+        <section class="panel monitor-panel">
+          <div class="panel-head">
+            <div>
+              <small>04</small>
+              <h2>任务进度</h2>
+            </div>
+            <span class="panel-tag">状态</span>
+          </div>
+          <div class="steps" id="steps"></div>
+          <div class="artifact-actions">
+            <a id="audio-link" href="#" hidden>下载音频</a>
+            <a id="script-link" href="#" hidden>下载文案</a>
+            <a id="subtitle-link" href="#" hidden>下载字幕</a>
+            <a id="cover-link" href="#" hidden>下载封面</a>
+            <a id="video-link" href="#" hidden>下载成片</a>
+          </div>
+        </section>
+
+        <section class="panel preview-panel">
+          <div class="panel-head">
+            <div>
+              <small>05</small>
+              <h2>成片预览</h2>
+            </div>
+            <span class="panel-tag">视频</span>
+          </div>
+          <div class="preview-shell">
+            <video id="preview-video" controls playsinline></video>
+            <div id="empty-preview" class="empty-preview">等待成片</div>
+          </div>
+        </section>
+
+        <section class="panel publish-panel">
+          <div class="panel-head">
+            <div>
+              <small>06</small>
+              <h2>发布清单</h2>
+            </div>
+            <span class="panel-tag">分发</span>
+          </div>
+          <div class="platform-icons">
+            <div>抖音</div>
+            <div>视频号</div>
+            <div>小红书</div>
+            <div>快手</div>
+          </div>
+          <pre id="publish-report"></pre>
+        </section>
+      </form>
     </main>
 
     <script src="/static/app.js"></script>
