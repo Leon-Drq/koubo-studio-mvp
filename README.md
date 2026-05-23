@@ -337,3 +337,220 @@ models/                本地模型仓库和权重，不提交
 - 抖音、视频号、小红书、快手自动发布建议优先接官方开放平台。
 - Wav2Lip 等部分开源项目存在商业使用限制，商业化前需单独确认许可证。
 - 本项目是 MVP，不包含内容审核、版权检测和平台风控绕过能力。
+
+## AI 部署指令
+
+下面这段是给 AI coding agent / 运维 agent 看的。目标是让 AI 在一台新的 Windows 机器上，从零部署出和本仓库同等能力的本地 Koubo Studio。
+
+### 目标
+
+部署一个可本地访问的 Koubo Studio：
+
+- Web 地址：`http://127.0.0.1:8000`
+- 支持上传真人视频、声音样本、对标链接/文案
+- 支持 F5-TTS、IndexTTS2、CosyVoice 三种语音模型选项
+- 支持 LatentSync 高质量口型同步和 MuseTalk fallback
+- 支持 Ollama/Qwen 本地文案改写
+- 不把 `.env`、模型权重、任务产物、cookies、缓存提交到 Git
+
+### 机器前提
+
+先确认：
+
+- Windows 11
+- NVIDIA GPU，建议 12GB+ VRAM
+- 32GB 内存更稳
+- 项目所在磁盘至少 100GB 可用空间
+- PowerShell 可运行脚本
+- 网络可访问 GitHub、Hugging Face、ModelScope、PyPI、PyTorch wheel 源
+
+如果没有 GPU，也要部署 Web 和 fallback，但不要承诺本地模型高质量生成一定可用。
+
+### 安装系统依赖
+
+在管理员或普通 PowerShell 中执行：
+
+```powershell
+winget install Git.Git
+winget install GitHub.GitLFS
+winget install Gyan.FFmpeg
+winget install astral-sh.uv
+winget install Ollama.Ollama
+```
+
+如果 `winget` 不可用，AI 需要改用官方安装包或包管理器安装等价工具。安装后验证：
+
+```powershell
+git --version
+git-lfs --version
+ffmpeg -version
+ffprobe -version
+uv --version
+ollama --version
+nvidia-smi
+```
+
+### 获取源码
+
+```powershell
+git clone https://github.com/Leon-Drq/koubo-studio-mvp.git
+cd koubo-studio-mvp
+```
+
+如果使用 SSH：
+
+```powershell
+git clone git@github.com:Leon-Drq/koubo-studio-mvp.git
+cd koubo-studio-mvp
+```
+
+### 安装主服务
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -U pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+如果系统没有 Python 3.11，先安装 Python 3.11，再重新执行。
+
+### 安装本地模型
+
+完整安装：
+
+```powershell
+.\scripts\setup_local_models.ps1 -WithIndexTTS -WithCosyVoice
+```
+
+如果机器资源有限，可以分阶段：
+
+```powershell
+.\scripts\setup_local_models.ps1 -SkipOllama -SkipMuseTalk -WithIndexTTS
+.\scripts\setup_local_models.ps1 -SkipOllama -SkipMuseTalk -WithCosyVoice
+```
+
+安装脚本需要能完成这些结果：
+
+- `.venv-models` 存在
+- `.venv-musetalk` 存在
+- `.venv-latentsync` 存在，如果当前仓库/机器已配置 LatentSync
+- `models/MuseTalk` 存在
+- `models/IndexTTS/.venv` 和 `models/IndexTTS/checkpoints` 存在
+- `models/CosyVoice/.venv` 和 `models/CosyVoice/pretrained_models/CosyVoice2-0.5B` 存在
+- Ollama 已拉取 `qwen2.5:7b`
+
+如果 GitHub LFS 报配额或示例音频下载失败，保持 `GIT_LFS_SKIP_SMUDGE=1`，只拉源码，再通过 Hugging Face/ModelScope 下载真正需要的权重。
+
+如果 C 盘空间不足，设置缓存到项目磁盘后重试：
+
+```powershell
+$env:UV_CACHE_DIR=(Resolve-Path "models\cache\uv")
+$env:TEMP=(Resolve-Path "models\cache\tmp")
+$env:TMP=$env:TEMP
+```
+
+### 配置 `.env`
+
+AI 要检查 `.env` 至少包含这些本地命令。路径可以按实际安装位置调整：
+
+```env
+DEFAULT_ASR_PROVIDER=local
+DEFAULT_LLM_PROVIDER=local
+DEFAULT_TTS_PROVIDER=local
+DEFAULT_LIPSYNC_PROVIDER=latentsync
+DEFAULT_TTS_MODEL=f5
+
+ASR_COMMAND=.venv-models/Scripts/python.exe scripts/adapters/funasr_asr.py --input {audio} --output {text}
+LLM_COMMAND=python scripts/adapters/ollama_rewrite.py --input {input} --output {output}
+F5_TTS_COMMAND=.venv-models/Scripts/python.exe scripts/adapters/f5_tts.py --input {input} --voice {voice} --voice-sample {voice_sample} --output {audio}
+INDEXTTS_COMMAND=models/IndexTTS/.venv/Scripts/python.exe scripts/adapters/indextts2_tts.py --input {input} --voice-sample {voice_sample} --output {audio}
+COSYVOICE_COMMAND=models/CosyVoice/.venv/Scripts/python.exe scripts/adapters/cosyvoice_tts.py --input {input} --voice-sample {voice_sample} --output {audio}
+LATENTSYNC_COMMAND=.venv-latentsync/Scripts/python.exe scripts/adapters/latentsync_lipsync.py --video {video} --audio {audio} --output {output}
+LIPSYNC_COMMAND=.venv-musetalk/Scripts/python.exe scripts/adapters/musetalk_lipsync.py --video {video} --audio {audio} --output {output}
+
+OLLAMA_MODEL=qwen2.5:7b
+AUTO_UNLOAD_OLLAMA_BEFORE_MEDIA=true
+```
+
+如果 LatentSync 没安装成功，设置：
+
+```env
+DEFAULT_LIPSYNC_PROVIDER=preview
+```
+
+这样至少能用原视频配音预览跑通闭环。
+
+### 启动服务
+
+生产式本地运行：
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+不要默认使用 `--reload` 跑本地模型，因为模型缓存、虚拟环境文件变化会触发重启。
+
+### 验收标准
+
+AI 完成部署后必须验证：
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall app scripts
+.\.venv\Scripts\python.exe scripts\smoke_test.py
+curl.exe --noproxy "*" http://127.0.0.1:8000/api/health
+```
+
+`/api/health` 至少应返回：
+
+```json
+{
+  "ok": true,
+  "adapters": {
+    "tts_models": {
+      "f5": true
+    }
+  }
+}
+```
+
+如果已安装 IndexTTS2 和 CosyVoice，应看到：
+
+```json
+"tts_models": {
+  "f5": true,
+  "indextts2": true,
+  "cosyvoice": true
+}
+```
+
+还要做一次端到端任务：
+
+1. 打开 `http://127.0.0.1:8000`
+2. 输入或粘贴一段 10-30 秒中文口播文案
+3. 上传真人视频
+4. 上传声音样本
+5. 语音模型先选 `F5-TTS`，成片质量先选 `快速预览`
+6. 确认任务完成，`final.mp4` 可播放且有音轨
+7. 再分别测试 `IndexTTS2`、`CosyVoice`、`LatentSync 高质量`
+
+### 常见故障处理
+
+- `503` 或 curl 本地失败：检查 `HTTP_PROXY`/`HTTPS_PROXY`，用 `curl.exe --noproxy "*"` 测试。
+- `CUDA out of memory`：执行 `ollama stop qwen2.5:7b`，关闭浏览器/飞书/剪辑软件，或选 `快速预览`。
+- IndexTTS2 报系统内存不足：关闭其他程序，增加虚拟内存，确认机器至少 24-32GB 内存。
+- CosyVoice 找不到模块：确认 `models/CosyVoice/.venv` 安装完成，并且 `models/CosyVoice/third_party/Matcha-TTS` 存在。
+- MuseTalk 找不到模型：重新执行安装脚本，确认 `models/MuseTalk/models` 下权重完整。
+- yt-dlp 下载抖音失败：导出 douyin.com Netscape cookies，设置 `YTDLP_COOKIES_FILE=D:/path/to/cookies.txt`。
+- 生成视频没声音：检查浏览器播放器是否静音；再用 `ffprobe final.mp4` 确认是否有 audio stream。
+- 成片很短：成片长度跟生成的口播音频长度走，不跟原真人视频长度走；需要更长成片就提供更长文案。
+
+### AI 不要做的事
+
+- 不要提交 `.env`
+- 不要提交 `models/`
+- 不要提交 `data/jobs/`
+- 不要提交 `checkpoints/`
+- 不要提交 cookies 或用户上传素材
+- 不要删除用户已有任务产物，除非用户明确要求
+- 不要把商业授权、肖像授权、声音授权问题略过
